@@ -1,0 +1,45 @@
+{
+  "name": "Patient to PERSON",
+  "version": "1.0.0",
+  "resource_type": "Patient",
+  "description": "Default FHIR Patient -> OMOP PERSON mapping (Release 0.1 prototype)",
+  "rules": [
+    {
+      "targetTable": "PERSON",
+      "filter": "meta.status != 'entered-in-error'",
+      "columns": {
+        "person_id": "uuid",
+        "gender_concept_id": "lookup.gender.gender",
+        "year_of_birth": "extract.birthDate",
+        "month_of_birth": "const:0",
+        "day_of_birth": "const:0",
+        "birth_datetime": "extract.birthDate",
+        "race_concept_id": "const:0",
+        "ethnicity_concept_id": "const:0",
+        "location_id": "const:0",
+        "provider_id": "const:0",
+        "care_site_id": "const:0",
+        "person_source_value": "extract.id",
+        "gender_source_value": "extract.gender",
+        "gender_source_concept_id": "const:0"
+      },
+      "defaults": {
+        "year_of_birth": "const:0"
+      }
+    },
+    {
+      "targetTable": "OBSERVATION",
+      "filter": "deceasedDateTime != null or deceasedBoolean == true",
+      "columns": {
+        "observation_id": "uuid",
+        "person_id": "uuid",
+        "observation_concept_id": "const:44814651",
+        "observation_date": "extract.deceasedDateTime",
+        "observation_type_concept_id": "const:38000276",
+        "value_as_string": "extract.deceasedDateTime",
+        "observation_source_value": "extract.deceasedDateTime"
+      },
+      "defaults": {}
+    }
+  ]
+}

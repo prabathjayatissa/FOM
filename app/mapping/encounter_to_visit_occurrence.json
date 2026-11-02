@@ -1,0 +1,30 @@
+{
+  "name": "Encounter to VISIT_OCCURRENCE",
+  "version": "1.0.0",
+  "resource_type": "Encounter",
+  "description": "Default FHIR Encounter -> OMOP VISIT_OCCURRENCE mapping (Release 0.1 prototype)",
+  "rules": [
+    {
+      "targetTable": "VISIT_OCCURRENCE",
+      "filter": "status != 'entered-in-error'",
+      "columns": {
+        "visit_occurrence_id": "uuid",
+        "person_id": "const:0",
+        "visit_concept_id": "lookup.visit.type",
+        "visit_start_date": "extract.period.start",
+        "visit_start_datetime": "extract.period.start",
+        "visit_end_date": "extract.period.end",
+        "visit_end_datetime": "extract.period.end",
+        "visit_type_concept_id": "const:38000276",
+        "provider_id": "const:0",
+        "care_site_id": "const:0",
+        "visit_source_value": "extract.id",
+        "visit_source_concept_id": "const:0",
+        "admitted_from_concept_id": "const:0",
+        "discharged_to_concept_id": "const:0",
+        "preceding_visit_occurrence_id": "const:0"
+      },
+      "defaults": {}
+    }
+  ]
+}
