@@ -73,6 +73,20 @@ Web UI / REST API / CLI  -->  Orchestrator & scheduler
 
 ---
 
+## Why OMOP
+
+OMOP CDM (Observational Medical Outcomes Partnership Common Data Model) is the de facto standard for observational health data analytics, maintained by OHDSI (Observational Health Data Sciences and Informatics). Mapping FHIR to OMOP unlocks:
+
+- **Interoperability:** Convert heterogeneous FHIR resources from multiple EHR systems into a single, analysis-ready schema.
+- **Portable analytics:** Run OHDSI tools (ATLAS, Achilles, HADES, Data Quality Dashboard) against your data without site-specific ETL rework.
+- **Standardized semantics:** Source codes (ICD-10, SNOMED, LOINC, RxNorm, local codes) are resolved to standard concepts via OHDSI vocabularies.
+- **Derived insights:** Build observation periods, condition/drug/dose eras, and cost tables out of the box.
+- **Governance & audit:** Row-level lineage tracks every OMOP row back to its source FHIR resource, rule version, and run.
+
+FOM bridges the gap between FHIR-native source systems and the OMOP analytical world, letting sites load once and analyze with the full OHDSI toolchain.
+
+---
+
 ## Prerequisites
 
 - Python 3.11+
@@ -87,7 +101,7 @@ Web UI / REST API / CLI  -->  Orchestrator & scheduler
 ### 1. Clone / enter the project
 
 ```bash
-cd /fom-mapper
+cd /Users/prabathjayathissa/Documents/Claude/fom-mapper
 ```
 
 ### 2. Start the stack
@@ -161,7 +175,7 @@ docker-compose down
 ### 1. Create a virtual environment
 
 ```bash
-cd /fom-mapper
+cd /Users/prabathjayathissa/Documents/Claude/fom-mapper
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -490,11 +504,17 @@ fom-mapper/
 │   └── mapping/
 │       ├── patient_to_person.json
 │       └── encounter_to_visit_occurrence.json
-└── tests/
-    ├── conftest.py
-    ├── test_mapping_engine.py
-    ├── test_terminology.py
-    └── test_ingestion.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_mapping_engine.py
+│   ├── test_terminology.py
+│   ├── test_ingestion.py
+│   └── data/
+│       └── openmrs/           # OpenMRS FHIR test dataset (R4)
+│           ├── patients/
+│           ├── encounters/
+│           └── observations/
+└── data/                      # Raw store at runtime (created on first ingest)
 ```
 
 ---
@@ -520,7 +540,7 @@ Row-level lineage from OMOP rows to source resources (FR-093, DR-6) is captured 
 | Release | Content | SRS Section 10 |
 |---------|---------|----------------|
 | **0.1 Prototype** (current) | Bundle & ndjson ingestion, Patient & Encounter mapping, PostgreSQL target, CLI | 0.1 |
-| **0.5 Beta** | Core clinical resources, terminology service, crosswalk & incremental load, basic UI, structural checks | 0.5 |
+| **0.5 Beta** | Observation (prioritized), then Condition, Procedure, Medication, and other core clinical resources; terminology service, crosswalk & incremental load, basic UI, structural checks | 0.5 |
 | **1.0** | All Must requirements, derived tables (OBSERVATION_PERIOD, CONDITION/DRUG/DOSE_ERA), DQD integration, RBAC & audit, run reports, documentation | 1.0 |
 | **1.x** | Mapping editor improvements, SQL Server & further platforms, profile pack library, mapping suggestions, performance scaling | 1.x |
 

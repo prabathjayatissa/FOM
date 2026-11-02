@@ -1,0 +1,53 @@
+{
+  "resourceType": "Bundle",
+  "id": "openmrs-test-bundle-001",
+  "meta": {
+    "lastUpdated": "2026-10-21T11:00:00Z"
+  },
+  "type": "collection",
+  "total": 5,
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "openmrs-patient-001",
+        "gender": "female",
+        "birthDate": "1985-03-15"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "openmrs-patient-002",
+        "gender": "male",
+        "birthDate": "1972-07-22"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "openmrs-encounter-001",
+        "status": "finished",
+        "subject": { "reference": "Patient/openmrs-patient-001" }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "openmrs-observation-001",
+        "status": "final",
+        "code": { "coding": [ { "system": "http://loinc.org", "code": "8867-4" } ] },
+        "subject": { "reference": "Patient/openmrs-patient-001" }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "openmrs-observation-002",
+        "status": "final",
+        "code": { "coding": [ { "system": "http://loinc.org", "code": "2711-3" } ] },
+        "subject": { "reference": "Patient/openmrs-patient-001" }
+      }
+    }
+  ]
+}

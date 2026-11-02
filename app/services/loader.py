@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Crosswalk, RawResource, Run
+from app.models import Crosswalk, Lineage, RawResource, Run
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class Loader:
@@ -36,10 +37,14 @@ class Loader:
         fhir_version: str,
         omop_table: str,
         omop_id: int,
+        spec_name: Optional[str] = None,
+        spec_version: Optional[str] = None,
     ) -> Crosswalk:
         """Insert or update a crosswalk entry idempotently (FR-073).
 
         Re-processing the same resource version must not create duplicates.
+        Stores spec_name/spec_version so every loaded record carries the
+        mapping specification version that produced it (FR-040).
         """
         result = await self.db.execute(
             select(Crosswalk).where(
@@ -56,6 +61,8 @@ class Loader:
             existing.omop_id = omop_id
             existing.status = "active"
             existing.run_id = self.run.id
+            existing.spec_name = spec_name
+            existing.spec_version = spec_version
             await self.db.flush()
             return existing
 
@@ -66,12 +73,43 @@ class Loader:
             fhir_version=fhir_version,
             omop_table=omop_table,
             omop_id=omop_id,
+            spec_name=spec_name,
+            spec_version=spec_version,
             status="active",
             run_id=self.run.id,
         )
         self.db.add(entry)
         await self.db.flush()
         return entry
+
+    async def record_lineage(
+        self,
+        omop_table: str,
+        omop_id: int,
+        raw_resource: RawResource,
+        spec_name: Optional[str],
+        spec_version: Optional[str],
+    ) -> Lineage:
+        """Row-level lineage from OMOP row to source resource (FR-093, DR-6).
+
+        Creates a Lineage record linking the OMOP row to the source resource,
+        mapping spec version, and run. Brings lineage forward so every CDM
+        row can be traced to its origin.
+        """
+        lineage = Lineage(
+            omop_table=omop_table,
+            omop_id=omop_id,
+            source_system=raw_resource.source_system,
+            resource_type=raw_resource.resource_type,
+            fhir_id=raw_resource.fhir_id or "",
+            fhir_version=raw_resource.resource_json.get("meta", {}).get("versionId", "R4") if isinstance(raw_resource.resource_json, dict) else "R4",
+            spec_name=spec_name,
+            spec_version=spec_version,
+            run_id=self.run.id,
+        )
+        self.db.add(lineage)
+        await self.db.flush()
+        return lineage
 
     async def retire_resource(
         self,
@@ -107,7 +145,7 @@ class Loader:
         fhir_id: str,
         fhir_version: str,
         omop_table: str,
-    ) -> Crosswalk | None:
+    ) -> Optional[Crosswalk]:
         result = await self.db.execute(
             select(Crosswalk).where(
                 Crosswalk.source_system == source_system,
@@ -123,7 +161,6 @@ class Loader:
     async def generate_omop_id(self, table: str) -> int:
         """Generate a unique OMOP surrogate key across runs and workers
         (FR-071). Uses a UUID-derived high bucket plus a per-table sequence."""
-        # Deterministic per-run shard to avoid collisions across parallel workers.
         shard = int(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.run.run_id}:{table}").int % 100000)
         result = await self.db.execute(
             select(Crosswalk.omop_id).where(Crosswalk.omop_table == table).order_by(Crosswalk.omop_id.desc()).limit(1)
@@ -131,24 +168,6 @@ class Loader:
         max_id = result.scalar_one_or_none() or 0
         next_id = max_id + 1
         return shard * 1000000 + next_id
-
-    async def record_lineage(
-        self,
-        omop_table: str,
-        omop_id: int,
-        raw_resource: RawResource,
-        spec_name: str,
-        spec_version: str,
-    ) -> None:
-        """Row-level lineage from OMOP row to source resource (FR-093, DR-6).
-
-        Release 0.1 stores lineage via the crosswalk (run id + source identity).
-        A dedicated lineage table is formalized in release 1.0.
-        """
-        # Lineage is captured implicitly: crosswalk.run_id -> run, and
-        # crosswalk.<source,type,id> -> raw resource. Explicit lineage table
-        # added in release 1.0 (DR-6).
-        return
 
     async def commit(self) -> None:
         await self.db.commit()
@@ -170,7 +189,7 @@ async def complete_run(
     rows_read: int = 0,
     rows_mapped: int = 0,
     rows_rejected: int = 0,
-    error: str | None = None,
+    error: Optional[str] = None,
 ) -> Run:
     run.status = status
     run.completed_at = _now()

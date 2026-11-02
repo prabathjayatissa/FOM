@@ -93,7 +93,11 @@ class RejectedRecord(Base):
 
 
 class Crosswalk(Base):
-    """Persistent crosswalk: (source, type, fhir id, version) -> (OMOP table, OMOP id) (DR-3, FR-070)."""
+    """Persistent crosswalk: (source, type, fhir id, version) -> (OMOP table, OMOP id) (DR-3, FR-070).
+
+    Stores spec_name/spec_version so every loaded record carries the mapping
+    specification version that produced it (FR-040, DR-6 lineage).
+    """
 
     __tablename__ = "crosswalk"
 
@@ -104,12 +108,41 @@ class Crosswalk(Base):
     fhir_version: Mapped[str] = mapped_column(String(20), default="R4", nullable=False)
     omop_table: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     omop_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    spec_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    spec_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="active", nullable=False)  # active/retired/deleted
     run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("runs.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("source_system", "resource_type", "fhir_id", "fhir_version", name="uq_crosswalk_source"),
+    )
+
+
+class Lineage(Base):
+    """Row-level lineage: OMOP row -> source resource + rule version (DR-6, FR-093).
+
+    Brings lineage forward so every CDM row can be traced to the exact source
+    resource, mapping spec version, and run that produced it.
+    """
+
+    __tablename__ = "lineage"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    omop_table: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    omop_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    source_system: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    resource_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    fhir_id: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    fhir_version: Mapped[str] = mapped_column(String(20), default="R4", nullable=False)
+    spec_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    spec_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("runs.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_lineage_omop", "omop_table", "omop_id"),
+        Index("ix_lineage_source", "source_system", "resource_type", "fhir_id"),
     )
 
 
