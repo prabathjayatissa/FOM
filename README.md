@@ -52,7 +52,7 @@ FOM ingests clinical data expressed as HL7 FHIR resources, transforms it accordi
 ## Architecture Overview
 
 ```
-FHIR sources (files, uploads)  -->  Ingestion service  -->  Raw store
+FHIR sources (files, uploads)  -->  Ingestion service     -->  Raw store
                                                           -->  Staging service
                                                           -->  Mapping engine  -->  Loader  -->  OMOP CDM
                                                           -->  Terminology service
